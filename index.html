@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DemocraCY — Election Process Education Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { display: ['Playfair Display','serif'], body: ['Space Grotesk','sans-serif'] },
+                    colors: {
+                        brand: { 50:'#E6FFF5', 100:'#B3FFE0', 200:'#80FFCC', 300:'#4DFFB8', 400:'#1AFFA3', 500:'#00D68F', 600:'#00AB72', 700:'#008055', 800:'#005538', 900:'#002B1C' },
+                        gold: { 400:'#FFD54F', 500:'#FFB800', 600:'#E5A500' },
+                        dark: { 50:'#E8ECF1', 100:'#C1C9D6', 200:'#6B7A90', 300:'#3A4A64', 400:'#1E2A42', 500:'#141B2D', 600:'#111827', 700:'#0D1220', 800:'#080C18', 900:'#040710' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --bg: #080C18; --fg: #E8ECF1; --muted: #6B7A90; --accent: #00D68F;
+            --accent2: #FFB800; --card: #111827; --border: #1E2A42; --card-hover: #162032;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        html { scroll-behavior: smooth; }
+        body { font-family:'Space Grotesk',sans-serif; background:var(--bg); color:var(--fg); overflow-x:hidden; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width:6px; }
+        ::-webkit-scrollbar-track { background:var(--bg); }
+        ::-webkit-scrollbar-thumb { background:var(--accent); border-radius:3px; }
+
+        /* Hero Canvas */
+        #heroCanvas { position:absolute; top:0; left:0; width:100%; height:100%; z-index:0; }
+
+        /* Glow effects */
+        .glow-green { box-shadow: 0 0 30px rgba(0,214,143,0.3), 0 0 60px rgba(0,214,143,0.1); }
+        .glow-gold { box-shadow: 0 0 30px rgba(255,184,0,0.3), 0 0 60px rgba(255,184,0,0.1); }
+        .text-glow-green { text-shadow: 0 0 40px rgba(0,214,143,0.4); }
+
+        /* Animated gradient border */
+        .gradient-border {
+            position:relative; border-radius:16px; overflow:hidden;
+        }
+        .gradient-border::before {
+            content:''; position:absolute; inset:-2px; border-radius:18px; z-index:-1;
+            background: conic-gradient(from var(--angle,0deg), var(--accent), var(--accent2), var(--accent), var(--accent2), var(--accent));
+            animation: rotateBorder 4s linear infinite;
+        }
+        @property --angle { syntax:'<angle>'; initial-value:0deg; inherits:false; }
+        @keyframes rotateBorder { to { --angle:360deg; } }
+
+        /* Floating animation */
+        .float { animation: float 6s ease-in-out infinite; }
+        .float-delay { animation: float 6s ease-in-out infinite 2s; }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+
+        /* Pulse ring */
+        .pulse-ring { animation: pulseRing 2s ease-out infinite; }
+        @keyframes pulseRing { 0%{box-shadow:0 0 0 0 rgba(0,214,143,0.4)} 70%{box-shadow:0 0 0 20px rgba(0,214,143,0)} 100%{box-shadow:0 0 0 0 rgba(0,214,143,0)} }
+
+        /* Slide in animations */
+        .reveal { opacity:0; transform:translateY(40px); transition: all 0.8s cubic-bezier(0.16,1,0.3,1); }
+        .reveal.visible { opacity:1; transform:translateY(0); }
+        .reveal-left { opacity:0; transform:translateX(-60px); transition: all 0.8s cubic-bezier(0.16,1,0.3,1); }
+        .reveal-left.visible { opacity:1; transform:translateX(0); }
+        .reveal-right { opacity:0; transform:translateX(60px); transition: all 0.8s cubic-bezier(0.16,1,0.3,1); }
+        .reveal-right.visible { opacity:1; transform:translateX(0); }
+
+        /* Process step connector */
+        .step-connector { position:relative; }
+        .step-connector::after {
+            content:''; position:absolute; top:50%; right:-32px; width:32px; height:2px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+        }
+
+        /* Vote button animation */
+        .vote-btn { transition: all 0.3s ease; position:relative; overflow:hidden; }
+        .vote-btn::after {
+            content:''; position:absolute; top:50%; left:50%; width:0; height:0;
+            background:rgba(255,255,255,0.2); border-radius:50%;
+            transform:translate(-50%,-50%); transition: width 0.6s, height 0.6s;
+        }
+        .vote-btn:active::after { width:300px; height:300px; }
+
+        /* Toast notification */
+        .toast {
+            position:fixed; bottom:30px; right:30px; z-index:9999;
+            padding:16px 24px; border-radius:12px; font-weight:500;
+            transform:translateX(120%); transition: transform 0.5s cubic-bezier(0.16,1,0.3,1);
+        }
+        .toast.show { transform:translateX(0); }
+
+        /* Quiz option */
+        .quiz-option {
+            transition: all 0.3s ease; cursor:pointer; border:2px solid var(--border);
+        }
+        .quiz-option:hover { border-color:var(--accent); background:rgba(0,214,143,0.05); transform:translateX(4px); }
+        .quiz-option.correct { border-color:#00D68F; background:rgba(0,214,143,0.15); }
+        .quiz-option.wrong { border-color:#FF4757; background:rgba(255,71,87,0.15); }
+        .quiz-option.disabled { pointer-events:none; opacity:0.6; }
+
+        /* Progress bar */
+        .progress-fill { transition: width 1s cubic-bezier(0.16,1,0.3,1); }
+
+        /* Navbar */
+        .nav-glass {
+            background: rgba(8,12,24,0.85); backdrop-filter:blur(20px); border-bottom:1px solid rgba(30,42,66,0.5);
+        }
+        .nav-link { position:relative; }
+        .nav-link::after {
+            content:''; position:absolute; bottom:-2px; left:0; width:0; height:2px;
+            background:var(--accent); transition:width 0.3s ease;
+        }
+        .nav-link:hover::after { width:100%; }
+
+        /* Candidate card */
+        .candidate-card { transition: all 0.4s cubic-bezier(0.16,1,0.3,1); }
+        .candidate-card:hover { transform:translateY(-8px); }
+        .candidate-card.selected { border-color:var(--accent)!important; box-shadow:0 0 30px rgba(0,214,143,0.3); }
+
+        /* Stats counter */
+        .stat-number { font-variant-numeric:tabular-nums; }
+
+        /* Mobile menu */
+        .mobile-menu { transform:translateX(100%); transition:transform 0.4s cubic-bezier(0.16,1,0.3,1); }
+        .mobile-menu.open { transform:translateX(0); }
+
+        /* Scenario card */
+        .scenario-card { transition:all 0.3s ease; cursor:pointer; }
+        .scenario-card:hover { transform:scale(1.02); border-color:var(--accent2); }
+
+        /* Typing effect */
+        .typewriter { border-right:3px solid var(--accent); animation:blink 0.7s step-end infinite; }
+        @keyframes blink { 50%{border-color:transparent} }
+
+        /* Section divider */
+        .section-divider {
+            height:1px;
+            background: linear-gradient(90deg, transparent, var(--accent), var(--accent2), transparent);
+        }
+
+        @media(prefers-reduced-motion:reduce) {
+            *, *::before, *::after { animation-duration:0.01ms!important; transition-duration:0.01ms!important; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="nav-glass fixed top-0 left-0 right-0 z-50 px-6 py-3" id="navbar">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <a href="#hero" class="flex items-center gap-3 group">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center glow-green">
+                    <i class="fas fa-landmark text-white text-lg"></i>
+                </div>
+                <span class="font-display font-bold text-xl tracking-tight">Democra<span class="text-brand-500">CY</span></span>
+            </a>
+            <div class="hidden md:flex items-center gap-8">
+                <a href="#process" class="nav-link text-dark-200 hover:text-brand-500 text-sm font-medium transition-colors">Process</a>
+                <a href="#simulate" class="nav-link text-dark-200 hover:text-brand-500 text-sm font-medium transition-colors">Simulate</a>
+                <a href="#detect" class="nav-link text-dark-200 hover:text-brand-500 text-sm font-medium transition-colors">Detect</a>
+                <a href="#quiz" class="nav-link text-dark-200 hover:text-brand-500 text-sm font-medium transition-colors">Quiz</a>
+                <a href="#stats" class="nav-link text-dark-200 hover:text-brand-500 text-sm font-medium transition-colors">Stats</a>
+            </div>
+            <button class="md:hidden text-dark-100 text-xl" onclick="toggleMobileMenu()" aria-label="Menu">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="mobile-menu fixed inset-0 z-50 bg-dark-800/95 backdrop-blur-xl flex flex-col items-center justify-center gap-8" id="mobileMenu">
+        <button class="absolute top-5 right-6 text-2xl text-dark-100" onclick="toggleMobileMenu()" aria-label="Close menu">
+            <i class="fas fa-times"></i>
+        </button>
+        <a href="#process" class="text-2xl font-display font-bold text-dark-50 hover:text-brand-500 transition-colors" onclick="toggleMobileMenu()">Process</a>
+        <a href="#simulate" class="text-2xl font-display font-bold text-dark-50 hover:text-brand-500 transition-colors" onclick="toggleMobileMenu()">Simulate</a>
+        <a href="#detect" class="text-2xl font-display font-bold text-dark-50 hover:text-brand-500 transition-colors" onclick="toggleMobileMenu()">Detect</a>
+        <a href="#quiz" class="text-2xl font-display font-bold text-dark-50 hover:text-brand-500 transition-colors" onclick="toggleMobileMenu()">Quiz</a>
+        <a href="#stats" class="text-2xl font-display font-bold text-dark-50 hover:text-brand-500 transition-colors" onclick="toggleMobileMenu()">Stats</a>
+    </div>
+
+    <!-- Hero Section -->
+    <section id="hero" class="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <canvas id="heroCanvas"></canvas>
+        <!-- Gradient overlays -->
+        <div class="absolute inset-0 bg-gradient-to-b from-dark-800/40 via-transparent to-dark-800 z-[1]"></div>
+        <div class="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-dark-800 to-transparent z-[1]"></div>
+
+        <div class="relative z-[2] text-center px-6 max-w-5xl mx-auto">
+            <div class="inline-flex items-center gap-2 bg-brand-500/10 border border-brand-500/30 rounded-full px-5 py-2 mb-8">
+                <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
+                <span class="text-brand-500 text-sm font-medium">Empowering Democratic Literacy</span>
+            </div>
+            <h1 class="font-display font-900 text-5xl md:text-7xl lg:text-8xl leading-[1.05] mb-6">
+                Understand How<br>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-400 via-brand-500 to-gold-500">Democracy Works</span>
+            </h1>
+            <p class="text-dark-200 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+                An immersive platform to learn, simulate, and master the election process. From voter registration to result declaration — experience every step hands-on.
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="#process" class="group inline-flex items-center gap-3 bg-gradient-to-r from-brand-500 to-brand-600 text-dark-800 font-bold px-8 py-4 rounded-2xl hover:shadow-lg hover:shadow-brand-500/30 transition-all hover:-translate-y-1">
+                    Start Learning
+                    <i class="fas fa-arrow-right group-hover:translate-x-1 transition-transform"></i>
+                </a>
+                <a href="#simulate" class="inline-flex items-center gap-3 border-2 border-dark-300 text-dark-100 font-bold px-8 py-4 rounded-2xl hover:border-brand-500 hover:text-brand-500 transition-all">
+                    <i class="fas fa-play-circle"></i>
+                    Try Simulation
+                </a>
+            </div>
+            <!-- Stats counters -->
+            <div class="grid grid-cols-3 gap-8 mt-16 max-w-lg mx-auto">
+                <div>
+                    <div class="stat-number font-display font-bold text-3xl md:text-4xl text-brand-400" data-target="7">0</div>
+                    <div class="text-dark-200 text-sm mt-1">Process Steps</div>
+                </div>
+                <div>
+                    <div class="stat-number font-display font-bold text-3xl md:text-4xl text-gold-400" data-target="10">0</div>
+                    <div class="text-dark-200 text-sm mt-1">Quiz Questions</div>
+                </div>
+                <div>
+                    <div class="stat-number font-display font-bold text-3xl md:text-4xl text-brand-400" data-target="5">0</div>
+                    <div class="text-dark-200 text-sm mt-1">Fraud Scenarios</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scroll indicator -->
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-[2] flex flex-col items-center gap-2 animate-bounce">
+            <span class="text-dark-200 text-xs">Scroll to explore</span>
+            <i class="fas fa-chevron-down text-brand-500"></i>
+        </div>
+    </section>
+
+    <div class="section-divider max-w-4xl mx-auto"></div>
+
+    <!-- Election Process Section -->
+    <section id="process" class="py-24 px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-20 reveal">
+                <span class="text-brand-500 text-sm font-semibold tracking-widest uppercase">Step by Step</span>
+                <h2 class="font-display font-900 text-4xl md:text-5xl mt-3 mb-4">The Election Journey</h2>
+                <p class="text-dark-200 text-lg max-w-2xl mx-auto">Click on each step to explore what happens at every stage of the democratic process</p>
+            </div>
+
+            <div class="relative">
+                <!-- Process Steps -->
+                <div class="grid grid-cols-1 md:grid-cols-7 gap-4" id="processSteps">
+                    <!-- Steps will be rendered by JS -->
+                </div>
+
+                <!-- Step Detail Panel -->
+                <div id="stepDetail" class="mt-12 hidden">
+                    <div class="gradient-border">
+                        <div class="bg-dark-600 rounded-2xl p-8 md:p-10">
+                            <div class="flex items-start gap-6">
+                                <div id="stepIcon" class="w-16 h-16 rounded-2xl bg-brand-500/10 flex items-center justify-center shrink-0">
+                                    <i class="fas fa-landmark text-brand-500 text-2xl"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <span id="stepNumber" class="text-brand-500 font-bold text-sm">Step 1</span>
+                                        <span class="text-dark-300">•</span>
+                                        <span id="stepTitle" class="font-display font-bold text-2xl">Election Announcement</span>
+                                    </div>
+                                    <p id="stepDesc" class="text-dark-100 leading-relaxed mb-6"></p>
+                                    <div id="stepKeyPoints" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider max-w-4xl mx-auto"></div>
+
+    <!-- Mock Election Simulator -->
+    <section id="simulate" class="py-24 px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <span class="text-gold-500 text-sm font-semibold tracking-widest uppercase">Hands-On Experience</span>
+                <h2 class="font-display font-900 text-4xl md:text-5xl mt-3 mb-4">Mock Election Simulator</h2>
+                <p class="text-dark-200 text-lg max-w-2xl mx-auto">Experience the complete voting process — verify your identity, cast your vote, and watch live results</p>
+            </div>
+
+            <!-- Election Phase Indicator -->
+            <div class="flex items-center justify-center gap-2 mb-12 reveal">
+                <div class="election-phase flex items-center gap-2 bg-dark-600 rounded-full px-4 py-2 border border-dark-400" data-phase="0">
+                    <span class="w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center text-xs font-bold text-brand-500">1</span>
+                    <span class="text-sm font-medium text-dark-100">Verify</span>
+                </div>
+                <div class="w-8 h-0.5 bg-dark-400"></div>
+                <div class="election-phase flex items-center gap-2 bg-dark-600 rounded-full px-4 py-2 border border-dark-400" data-phase="1">
+                    <span class="w-6 h-6 rounded-full bg-dark-400 flex items-center justify-center text-xs font-bold text-dark-200">2</span>
+                    <span class="text-sm font-medium text-dark-200">Vote</span>
+                </div>
+                <div class="w-8 h-0.5 bg-dark-400"></div>
+                <div class="election-phase flex items-center gap-2 bg-dark-600 rounded-full px-4 py-2 border border-dark-400" data-phase="2">
+                    <span class="w-6 h-6 rounded-full bg-dark-400 flex items-center justify-center text-xs font-bold text-dark-200">3</span>
+                    <span class="text-sm font-medium text-dark-200">Result</span>
+                </div>
+            </div>
+
+            <!-- Phase 0: Voter Verification -->
+            <div id="simPhase0" class="max-w-xl mx-auto">
+                <div class="bg-dark-600 border border-dark-400 rounded-2xl p-8">
+                    <h3 class="font-display font-bold text-xl mb-6 flex items-center gap-3">
+                        <i class="fas fa-id-card text-brand-500"></i> Voter Verification
+                    </h3>
+                    <div class="space-y-5">
+                        <div>
+                            <label class="text-dark-200 text-sm font-medium mb-2 block">Full Name</label>
+                            <input type="text" id="voterName" placeholder="Enter your full name" class="w-full bg-dark-700 border border-dark-400 rounded-xl px-4 py-3 text-dark-50 placeholder-dark-300 focus:border-brand-500 focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="text-dark-200 text-sm font-medium mb-2 block">Voter ID Number</label>
+                            <input type="text" id="voterID" placeholder="e.g. ABC1234567" class="w-full bg-dark-700 border border-dark-400 rounded-xl px-4 py-3 text-dark-50 placeholder-dark-300 focus:border-brand-500 focus:outline-none transition-colors">
+                        </div>
+                        <div>
+                            <label class="text-dark-200 text-sm font-medium mb-2 block">Constituency</label>
+                            <select id="voterConstituency" class="w-full bg-dark-700 border border-dark-400 rounded-xl px-4 py-3 text-dark-50 focus:border-brand-500 focus:outline-none transition-colors">
+                                <option value="">Select your constituency</option>
+                                <option>Mumbai North</option>
+                                <option>Delhi Central</option>
+                                <option>Bangalore South</option>
+                                <option>Chennai East</option>
+                                <option>Kolkata West</option>
+                            </select>
+                        </div>
+                        <button onclick="verifyVoter()" class="vote-btn w-full bg-gradient-to-r from-brand-500 to-brand-600 text-dark-800 font-bold py-3 rounded-xl hover:shadow-lg hover:shadow-brand-500/30 transition-all">
+                            Verify & Proceed to Vote <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 1: Voting -->
+            <div id="simPhase1" class="hidden">
+                <div class="text-center mb-6">
+                    <p class="text-dark-200">Welcome, <span id="voterNameDisplay" class="text-brand-400 font-semibold"></span> — Cast your vote wisely</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6" id="candidateGrid">
+                    <!-- Candidates rendered by JS -->
+                </div>
+                <div class="text-center mt-8">
+                    <button id="castVoteBtn" onclick="castVote()" disabled class="vote-btn bg-gradient-to-r from-gold-500 to-gold-600 text-dark-800 font-bold px-10 py-4 rounded-2xl opacity-50 cursor-not-allowed transition-all">
+                        <i class="fas fa-vote-yea mr-2"></i> Cast Your Vote
+                    </button>
+                    <p id="voteHint" class="text-dark-300 text-sm mt-3">Select a candidate first</p>
+                </div>
+            </div>
+
+            <!-- Phase 2: Results -->
+            <div id="simPhase2" class="hidden">
+                <div class="max-w-3xl mx-auto">
+                    <!-- Vote Cast Confirmation -->
+                    <div id="voteConfirm" class="text-center mb-10">
+                        <div class="w-20 h-20 rounded-full bg-brand-500/20 flex items-center justify-center mx-auto mb-4 pulse-ring">
+                            <i class="fas fa-check text-brand-500 text-3xl"></i>
+                        </div>
+                        <h3 class="font-display font-bold text-2xl mb-2">Vote Cast Successfully</h3>
+                        <p class="text-dark-200">Your vote has been recorded securely. Watch the live counting!</p>
+                    </div>
+
+                    <!-- Live Counting Animation -->
+                    <div class="bg-dark-600 border border-dark-400 rounded-2xl p-6 mb-8">
+                        <div class="flex items-center justify-between mb-4">
+                            <h4 class="font-bold flex items-center gap-2"><i class="fas fa-chart-bar text-gold-500"></i> Live Results</h4>
+                            <span id="countStatus" class="text-sm text-brand-500 font-medium">Counting...</span>
+                        </div>
+                        <div id="resultBars" class="space-y-4">
+                            <!-- Result bars rendered by JS -->
+                        </div>
+                    </div>
+
+                    <!-- Winner Announcement -->
+                    <div id="winnerAnnounce" class="hidden text-center bg-gradient-to-br from-gold-500/10 to-brand-500/10 border border-gold-500/30 rounded-2xl p-8">
+                        <i class="fas fa-trophy text-gold-500 text-4xl mb-4"></i>
+                        <h3 class="font-display font-900 text-3xl mb-2" id="winnerName"></h3>
+                        <p class="text-dark-100 mb-4" id="winnerParty"></p>
+                        <div class="text-gold-400 font-bold text-lg" id="winnerVotes"></div>
+                    </div>
+
+                    <div class="text-center mt-8">
+                        <button onclick="resetElection()" class="border-2 border-dark-300 text-dark-100 font-bold px-8 py-3 rounded-xl hover:border-brand-500 hover:text-brand-500 transition-all">
+                            <i class="fas fa-redo mr-2"></i> Simulate Again
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider max-w-4xl mx-auto"></div>
+
+    <!-- Fraud Detection Challenge -->
+    <section id="detect" class="py-24 px-6">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <span class="text-red-400 text-sm font-semibold tracking-widest uppercase">Critical Thinking</span>
+                <h2 class="font-display font-900 text-4xl md:text-5xl mt-3 mb-4">Spot the Violation</h2>
+                <p class="text-dark-200 text-lg max-w-2xl mx-auto">Can you identify what's wrong in these election scenarios? Test your knowledge of electoral laws and ethics</p>
+            </div>
+
+            <div id="fraudArea">
+                <div id="scenarioDisplay" class="bg-dark-600 border border-dark-400 rounded-2xl p-8 md:p-10 mb-6">
+                    <div class="flex items-center gap-3 mb-6">
+                        <span id="scenarioNum" class="bg-red-400/10 text-red-400 font-bold text-sm px-3 py-1 rounded-full">Scenario 1/5</span>
+                        <span id="scenarioDiff" class="bg-gold-500/10 text-gold-500 font-bold text-sm px-3 py-1 rounded-full">Medium</span>
+                    </div>
+                    <p id="scenarioText" class="text-dark-50 text-lg leading-relaxed mb-8"></p>
+                    <div id="scenarioOptions" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Options rendered by JS -->
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-dark-200 text-sm">Score:</span>
+                        <span id="fraudScore" class="text-brand-400 font-bold">0</span>
+                        <span class="text-dark-300 text-sm">/5</span>
+                    </div>
+                    <button id="nextScenario" onclick="nextScenario()" class="hidden bg-dark-600 border border-dark-400 text-dark-100 font-medium px-6 py-2 rounded-xl hover:border-brand-500 transition-all">
+                        Next Scenario <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider max-w-4xl mx-auto"></div>
+
+    <!-- Quiz Section -->
+    <section id="quiz" class="py-24 px-6">
+        <div class="max-w-3xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <span class="text-brand-500 text-sm font-semibold tracking-widest uppercase">Test Yourself</span>
+                <h2 class="font-display font-900 text-4xl md:text-5xl mt-3 mb-4">Election Knowledge Quiz</h2>
+                <p class="text-dark-200 text-lg">How well do you know the democratic process? Find out now</p>
+            </div>
+
+            <div id="quizArea">
+                <!-- Progress -->
+                <div class="flex items-center justify-between mb-6">
+                    <span class="text-dark-200 text-sm font-medium">Question <span id="qNum">1</span>/10</span>
+                    <span class="text-brand-400 text-sm font-bold" id="qScore">Score: 0</span>
+                </div>
+                <div class="w-full bg-dark-700 rounded-full h-2 mb-8">
+                    <div id="quizProgress" class="h-2 bg-gradient-to-r from-brand-500 to-brand-400 rounded-full progress-fill" style="width:10%"></div>
+                </div>
+
+                <div class="bg-dark-600 border border-dark-400 rounded-2xl p-8">
+                    <h3 id="quizQuestion" class="font-display font-bold text-xl md:text-2xl mb-8"></h3>
+                    <div id="quizOptions" class="space-y-4">
+                        <!-- Options rendered by JS -->
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between mt-6">
+                    <div id="quizFeedback" class="text-sm font-medium"></div>
+                    <button id="nextQuizBtn" onclick="nextQuizQuestion()" class="hidden bg-brand-500 text-dark-800 font-bold px-6 py-2 rounded-xl hover:bg-brand-400 transition-all">
+                        Next <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quiz Result -->
+            <div id="quizResult" class="hidden text-center">
+                <div class="bg-dark-600 border border-dark-400 rounded-2xl p-10">
+                    <div id="quizResultIcon" class="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6"></div>
+                    <h3 id="quizResultTitle" class="font-display font-900 text-3xl mb-3"></h3>
+                    <p id="quizResultDesc" class="text-dark-200 mb-6"></p>
+                    <div class="text-5xl font-display font-900 mb-2" id="quizFinalScore"></div>
+                    <p class="text-dark-300 mb-8">out of 10</p>
+                    <button onclick="restartQuiz()" class="bg-gradient-to-r from-brand-500 to-brand-600 text-dark-800 font-bold px-8 py-3 rounded-xl hover:shadow-lg hover:shadow-brand-500/30 transition-all">
+                        Retake Quiz
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="section-divider max-w-4xl mx-auto"></div>
+
+    <!-- Stats Dashboard -->
+    <section id="stats" class="py-24 px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <span class="text-brand-500 text-sm font-semibold tracking-widest uppercase">Data Insights</span>
+                <h2 class="font-display font-900 text-4xl md:text-5xl mt-3 mb-4">Election Dashboard</h2>
+                <p class="text-dark-200 text-lg max-w-2xl mx-auto">Visualizing India's democratic participation through data</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 reveal">
+                <div class="bg-dark-600 border border-dark-400 rounded-2xl p-6 text-center">
+                    <i class="fas fa-users text-brand-500 text-2xl mb-3"></i>
+                    <div class="font-display font-900 text-4xl text-brand-400 stat-counter" data-target="912">0</div>
+                    <div class="text-dark-200 text-sm mt-1">Million Registered Voters</div>
+                </div>
+                <div class="bg-dark-600 border border-dark-400 rounded-2xl p-6 text-center">
+                    <i class="fas fa-check-circle text-gold-500 text-2xl mb-3"></i>
+                    <div class="font-display font-900 text-4xl text-gold-400 stat-counter" data-target="67">0</div>
+                    <div class="text-dark-200 text-sm mt-1">Average Voter Turnout %</div>
+                </div>
+                <div class="bg-dark-600 border border-dark-400 rounded-2xl p-6 text-center">
+                    <i class="fas fa-landmark text-brand-500 text-2xl mb-3"></i>
+                    <div class="font-display font-900 text-4xl text-brand-400 stat-counter" data-target="543">0</div>
+                    <div class="text-dark-200 text-sm mt-1">Lok Sabha Seats</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 reveal">
+                <div class="bg-dark-600 border border-dark-400 rounded-2xl p-6">
+                    <h4 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-chart-line text-brand-500"></i> Voter Turnout Trend (Lok Sabha)</h4>
+                    <canvas id="turnoutChart" height="250"></canvas>
+                </div>
+                <div class="bg-dark-600 border border-dark-400 rounded-2xl p-6">
+                    <h4 class="font-bold mb-4 flex items-center gap-2"><i class="fas fa-chart-pie text-gold-500"></i> Votes by Party Category (2019)</h4>
+                    <canvas id="partyChart" height="250"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-dark-400 py-12 px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <div>
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
+                            <i class="fas fa-landmark text-white"></i>
+                        </div>
+                        <span class="font-display font-bold text-xl">Democra<span class="text-brand-500">CY</span></span>
+                    </div>
+                    <p class="text-dark-200 text-sm leading-relaxed">An interactive educational platform designed to build democratic literacy and empower informed citizenship.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-4 text-dark-100">Quick Links</h4>
+                    <div class="space-y-2">
+                        <a href="#process" class="block text-dark-200 text-sm hover:text-brand-500 transition-colors">Election Process</a>
+                        <a href="#simulate" class="block text-dark-200 text-sm hover:text-brand-500 transition-colors">Mock Election</a>
+                        <a href="#detect" class="block text-dark-200 text-sm hover:text-brand-500 transition-colors">Fraud Detection</a>
+                        <a href="#quiz" class="block text-dark-200 text-sm hover:text-brand-500 transition-colors">Knowledge Quiz</a>
+                        <a href="#stats" class="block text-dark-200 text-sm hover:text-brand-500 transition-colors">Election Data</a>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-4 text-dark-100">References</h4>
+                    <div class="space-y-2">
+                        <p class="text-dark-200 text-sm">Election Commission of India</p>
+                        <p class="text-dark-200 text-sm">Constitution of India - Part XV</p>
+                        <p class="text-dark-200 text-sm">Representation of People Act, 1951</p>
+                    </div>
+                </div>
+            </div>
+            <div class="section-divider my-8"></div>
+            <p class="text-dark-300 text-sm text-center">Built for Hackathon 2025 — Empowering Democratic Education Through Technology</p>
+        </div>
+    </footer>
+
+    <!-- Toast -->
+    <div id="toast" class="toast bg-dark-600 border border-dark-400 text-dark-50">
+        <span id="toastMsg"></span>
+    </div>
+
+    <script>
+    // ========== DATA ==========
+
+    // Election Process Steps
+    const processSteps = [
+        {
+            icon:'fa-bullhorn', title:'Election Announcement', color:'#00D68F',
+            desc:'The President of India, on the advice of the Election Commission, issues a formal notification declaring the dates for general elections. This marks the official beginning of the democratic process.',
+            points:['Model Code of Conduct comes into effect immediately','Dates for nomination, polling, and counting are announced','Period of 44 days typically from announcement to results','By-elections and general elections follow the same notification process']
+        },
+        {
+            icon:'fa-id-card', title:'Voter Registration', color:'#00B8D4',
+            desc:'Eligible citizens (18+ years) must register on the electoral roll. The Electoral Registration Officer updates rolls periodically. Forms 6, 7, and 8 handle new registration, deletion, and correction respectively.',
+            points:['Minimum age: 18 years as on qualifying date (Jan 1)','Online registration through NVSP portal or Voter Helpline App','BPL, SC/ST, and persons with disabilities get special provisions','Over 912 million registered voters in 2024']
+        },
+        {
+            icon:'fa-file-signature', title:'Candidate Nomination', color:'#FFB800',
+            desc:'Candidates file nomination papers with the Returning Officer, including a security deposit and proposers. Nomination papers are scrutinized and valid candidates are announced.',
+            points:['Security deposit: Rs.25,000 (General), Rs.12,500 (SC/ST)','Requires at least 1 proposer for recognized party, 10 for independents','Nomination can be rejected during scrutiny if papers are invalid','Candidates can withdraw within 3 days of scrutiny']
+        },
+        {
+            icon:'fa-bullhorn', title:'Campaigning', color:'#FF6B6B',
+            desc:'Candidates and parties campaign to win voter support through rallies, door-to-door canvassing, media, and public meetings. Campaigning must stop 48 hours before polling.',
+            points:['Campaign period: typically 2-3 weeks','48-hour silence period before polling day','Expenditure limit: Rs.95 lakh per Lok Sabha constituency','ECI monitors paid news and social media violations']
+        },
+        {
+            icon:'fa-vote-yea', title:'Voting Day', color:'#A855F7',
+            desc:'Registered voters cast their vote at designated polling stations using EVMs (Electronic Voting Machines) and VVPATs (Voter Verifiable Paper Audit Trails). Polling is conducted by trained officers.',
+            points:['Voting hours: typically 7 AM to 6 PM','EVM + VVPAT ensure transparent and verifiable voting','NOTA (None Of The Above) option available since 2013','Postal ballots available for service voters, seniors 80+, and persons with disabilities']
+        },
+        {
+            icon:'fa-calculator', title:'Vote Counting', color:'#06B6D4',
+            desc:'Votes are counted on the designated counting day under strict security. EVMs are unsealed in the presence of candidates/agents. VVPAT slips from 5 random booths per constituency are verified.',
+            points:['Counting starts at 8 AM on counting day','14 rounds of counting typically per constituency','VVPAT verification of 5 random EVMs per Assembly Segment','Postal ballots are counted before EVM votes']
+        },
+        {
+            icon:'fa-crown', title:'Results Declaration', color:'#FFB800',
+            desc:'The Returning Officer declares the winning candidate based on highest valid votes. The President invites the majority party/coalition to form the government.',
+            points:['Candidate with most votes wins (First-Past-The-Post system)','In case of a tie, winner decided by drawing lots','Election results can be challenged in court through election petitions','New Lok Sabha must be constituted within 6 months of dissolution']
+        }
+    ];
+
+    // Mock Election Candidates
+    const candidates = [
+        { id:1, name:'Arjun Sharma', party:'Progressive Alliance', symbol:'fas fa-sun', symbolColor:'#FFB800', age:52, background:'Former education minister with 20 years of public service', votes:0 },
+        { id:2, name:'Priya Patel', party:'Green Democratic Front', symbol:'fas fa-leaf', symbolColor:'#00D68F', age:45, background:'Environmental scientist turned politician, grassroots organizer', votes:0 },
+        { id:3, name:'Ravi Kumar', party:'National Development Party', symbol:'fas fa-industry', symbolColor:'#06B6D4', age:58, background:'Industrialist focused on economic growth and job creation', votes:0 },
+        { id:4, name:'Meera Joshi', party:'People\'s Welfare Movement', symbol:'fas fa-hands-helping', symbolColor:'#A855F7', age:49, background:'Social worker championing women\'s rights and rural development', votes:0 }
+    ];
+
+    // Fraud Scenarios
+    const fraudScenarios = [
+        {
+            text:'A candidate distributes free food packets and cash to voters in a slum area two days before the election, calling it a "community welfare program."',
+            options:['This is acceptable community service','This is bribery and electoral violation — Model Code of Conduct prohibits distributing gifts/money to influence voters','Only cash is a violation, food packets are fine','This is legal if done through an NGO'],
+            correct:1, difficulty:'Easy'
+        },
+        {
+            text:'A polling booth has only one EVM for 3,500 registered voters, and the queue is 4 hours long. Many voters leave without casting their vote.',
+            options:['This is normal and acceptable','The Election Commission should provide more EVMs — inadequate infrastructure violates voters\' right to franchise','Voters should have come earlier','This is the voters\' own fault for leaving the queue'],
+            correct:1, difficulty:'Medium'
+        },
+        {
+            text:'A political party runs a social media campaign using deepfake videos of their opponent making controversial statements that the opponent never actually made.',
+            options:['This is just normal political advertising','Deepfakes are fine as long as they look realistic','This is a serious violation — spreading false information about candidates is an electoral offense and the ECI can take action','It\'s the opponent\'s responsibility to disprove the videos'],
+            correct:2, difficulty:'Hard'
+        },
+        {
+            text:'Inside a polling station, a polling agent of a major party is seen checking voter IDs and telling voters which button to press on the EVM.',
+            options:['Polling agents are allowed to guide voters','This is booth capturing — unauthorized influence inside the polling booth is illegal. Only polling officers can assist voters, and only if specifically requested','It\'s fine if the voter seems confused','Polling agents can check IDs but not instruct voting'],
+            correct:3, difficulty:'Medium'
+        },
+        {
+            text:'The day before election results, a news channel broadcasts "exit polls" showing one party winning with a massive majority, even though the Election Commission has not yet released any official data.',
+            options:['Exit polls are always accurate so this is fine','The ECI regulates exit polls — broadcasting them during the prohibited period (from polling start to 30 min before last phase ends) is a violation','News channels can broadcast whatever they want','Only the ECI can announce results, but exit polls are unregulated'],
+            correct:1, difficulty:'Hard'
+        }
+    ];
+
+    // Quiz Questions
+    const quizQuestions = [
+        { q:'What is the minimum age to contest for a Lok Sabha seat in India?', options:['21 years','25 years','30 years','35 years'], correct:1 },
+        { q:'Which constitutional body conducts elections in India?', options:['Parliament','Supreme Court','Election Commission of India','President of India'], correct:2 },
+        { q:'What does VVPAT stand for?', options:['Voter Verifiable Paper Audit Trail','Valid Vote Paper Authentication Token','Voter Verified Paper Audit Trail','Vote Verification Paper Audit Trail'], correct:2 },
+        { q:'How many proposers does an independent candidate need for nomination?', options:['1','5','10','20'], correct:2 },
+        { q:'What is NOTA in the context of Indian elections?', options:['National Organization for Transparent Elections','None Of The Above','Nomination of Technical Authority','New Order for Ticket Allocation'], correct:1 },
+        { q:'The Model Code of Conduct comes into effect from which moment?', options:['When election dates are announced','When campaigning starts','24 hours before polling','When nominations are filed'], correct:0 },
+        { q:'What is the maximum expenditure limit per candidate for a Lok Sabha constituency (2024)?', options:['Rs. 50 lakh','Rs. 70 lakh','Rs. 95 lakh','Rs. 1.5 crore'], correct:2 },
+        { q:'What voting system does India use for Lok Sabha elections?', options:['Proportional Representation','First-Past-The-Post','Single Transferable Vote','Mixed Member Proportional'], correct:1 },
+        { q:'How many VVPAT slips are verified per Assembly Segment as per Supreme Court order?', options:['1 EVM','5 EVMs','10 EVMs','All EVMs'], correct:1 },
+        { q:'What is the minimum age to register as a voter in India?', options:['16 years','18 years','21 years','25 years'], correct:1 }
+    ];
+
+    // ========== STATE ==========
+    let currentStep = -1;
+    let selectedCandidate = null;
+    let electionPhase = 0;
+    let fraudScore = 0;
+    let currentScenario = 0;
+    let quizScore = 0;
+    let currentQuiz = 0;
+    let scenarioAnswered = false;
+    let quizAnswered = false;
+
+    // ========== HERO CANVAS PARTICLES ==========
+    const canvas = document.getElementById('heroCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let mouseX = 0, mouseY = 0;
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    class Particle {
+        constructor() {
+            this.reset();
+        }
+        reset() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.size = Math.random() * 3 + 1;
+            this.speedX = (Math.random() - 0.5) * 0.5;
+            this.speedY = (Math.random() - 0.5) * 0.5;
+            this.opacity = Math.random() * 0.5 + 0.1;
+            this.color = Math.random() > 0.7 ? '#FFB800' : '#00D68F';
+            this.life = Math.random() * 200 + 100;
+            this.maxLife = this.life;
+        }
+        update() {
+            this.x += this.speedX;
+            this.y += this.speedY;
+            this.life--;
+            // Mouse attraction
+            const dx = mouseX - this.x;
+            const dy = mouseY - this.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 200) {
+                this.speedX += dx * 0.00005;
+                this.speedY += dy * 0.00005;
+            }
+            if (this.life <= 0 || this.x < -50 || this.x > canvas.width+50 || this.y < -50 || this.y > canvas.height+50) {
+                this.reset();
+            }
+        }
+        draw() {
+            const alpha = this.opacity * (this.life / this.maxLife);
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = alpha;
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // Initialize particles
+    for (let i = 0; i < 120; i++) particles.push(new Particle());
+
+    // Draw connections
+    function drawConnections() {
+        for (let i = 0; i < particles.length; i++) {
+            for (let j = i+1; j < particles.length; j++) {
+                const dx = particles[i].x - particles[j].x;
+                const dy = particles[i].y - particles[j].y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 120) {
+                    ctx.beginPath();
+                    ctx.moveTo(particles[i].x, particles[i].y);
+                    ctx.lineTo(particles[j].x, particles[j].y);
+                    ctx.strokeStyle = `rgba(0,214,143,${0.08 * (1 - dist/120)})`;
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
+                }
+            }
+        }
+    }
+
+    function animateHero() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Background gradient blobs
+        const time = Date.now() * 0.001;
+        const grad1 = ctx.createRadialGradient(
+            canvas.width*0.3 + Math.sin(time*0.5)*100, canvas.height*0.4 + Math.cos(time*0.3)*80, 0,
+            canvas.width*0.3, canvas.height*0.4, 350
+        );
+        grad1.addColorStop(0, 'rgba(0,214,143,0.06)');
+        grad1.addColorStop(1, 'rgba(0,214,143,0)');
+        ctx.fillStyle = grad1;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const grad2 = ctx.createRadialGradient(
+            canvas.width*0.7 + Math.cos(time*0.4)*80, canvas.height*0.6 + Math.sin(time*0.6)*60, 0,
+            canvas.width*0.7, canvas.height*0.6, 300
+        );
+        grad2.addColorStop(0, 'rgba(255,184,0,0.04)');
+        grad2.addColorStop(1, 'rgba(255,184,0,0)');
+        ctx.fillStyle = grad2;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        drawConnections();
+        particles.forEach(p => { p.update(); p.draw(); });
+        requestAnimationFrame(animateHero);
+    }
+    animateHero();
+
+    document.addEventListener('mousemove', e => { mouseX = e.clientX; mouseY = e.clientY; });
+
+    // ========== COUNTER ANIMATION ==========
+    function animateCounters() {
+        document.querySelectorAll('[data-target]').forEach(el => {
+            const target = parseInt(el.dataset.target);
+            let current = 0;
+            const step = Math.max(1, Math.floor(target / 60));
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) { current = target; clearInterval(timer); }
+                el.textContent = current;
+            }, 30);
+        });
+    }
+
+    function animateStatCounters() {
+        document.querySelectorAll('.stat-counter').forEach(el => {
+            const target = parseInt(el.dataset.target);
+            let current = 0;
+            const step = Math.max(1, Math.floor(target / 60));
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) { current = target; clearInterval(timer); }
+                el.textContent = current.toLocaleString();
+            }, 30);
+        });
+    }
+
+    // ========== SCROLL REVEAL ==========
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                // Stat counters
+                if (entry.target.querySelector('.stat-counter')) {
+                    animateStatCounters();
+                }
+            }
+        });
+    }, { threshold:0.1 });
+
+    document.querySelectorAll('.reveal, .reveal-left, .reveal-right').forEach(el => observer.observe(el));
+
+    // Hero counter on load
+    setTimeout(animateCounters, 800);
+
+    // ========== NAVBAR SCROLL ==========
+    window.addEventListener('scroll', () => {
+        const nav = document.getElementById('navbar');
+        if (window.scrollY > 50) {
+            nav.classList.add('py-2');
+            nav.classList.remove('py-3');
+        } else {
+            nav.classList.remove('py-2');
+            nav.classList.add('py-3');
+        }
+    });
+
+    // ========== MOBILE MENU ==========
+    function toggleMobileMenu() {
+        document.getElementById('mobileMenu').classList.toggle('open');
+    }
+
+    // ========== TOAST ==========
+    function showToast(msg, type='info') {
+        const toast = document.getElementById('toast');
+        const tmsg = document.getElementById('toastMsg');
+        tmsg.textContent = msg;
+        toast.style.borderLeft = type==='success' ? '4px solid #00D68F' : type==='error' ? '4px solid #FF4757' : '4px solid #FFB800';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    // ========== PROCESS STEPS ==========
+    function renderProcessSteps() {
+        const container = document.getElementById('processSteps');
+        container.innerHTML = processSteps.map((step, i) => `
+            <div class="step-card cursor-pointer group reveal" style="transition-delay:${i*100}ms" onclick="selectStep(${i})">
+                <div class="bg-dark-600 border border-dark-400 rounded-2xl p-5 text-center hover:border-brand-500/50 transition-all group-hover:-translate-y-2 ${currentStep===i?'border-brand-500 glow-green':''}">
+                    <div class="w-12 h-12 rounded-xl mx-auto flex items-center justify-center mb-3" style="background:${step.color}20">
+                        <i class="fas ${step.icon} text-lg" style="color:${step.color}"></i>
+                    </div>
+                    <div class="text-brand-500 font-bold text-xs mb-1">Step ${i+1}</div>
+                    <div class="font-bold text-sm text-dark-50 leading-tight">${step.title}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+    renderProcessSteps();
+
+    function selectStep(index) {
+        currentStep = index;
+        const step = processSteps[index];
+        document.getElementById('stepIcon').innerHTML = `<i class="fas ${step.icon} text-2xl" style="color:${step.color}"></i>`;
+        document.getElementById('stepIcon').style.background = step.color + '20';
+        document.getElementById('stepNumber').textContent = 'Step ' + (index+1);
+        document.getElementById('stepNumber').style.color = step.color;
+        document.getElementById('stepTitle').textContent = step.title;
+        document.getElementById('stepDesc').textContent = step.desc;
+        document.getElementById('stepKeyPoints').innerHTML = step.points.map(p => `
+            <div class="flex items-start gap-2 bg-dark-700/50 rounded-xl p-3">
+                <i class="fas fa-check-circle mt-0.5 text-sm" style="color:${step.color}"></i>
+                <span class="text-dark-100 text-sm leading-relaxed">${p}</span>
+            </div>
+        `).join('');
+        document.getElementById('stepDetail').classList.remove('hidden');
+        renderProcessSteps();
+
+        // Scroll to detail
+        setTimeout(() => {
+            document.getElementById('stepDetail').scrollIntoView({ behavior:'smooth', block:'nearest' });
+        }, 100);
+    }
+
+    // ========== MOCK ELECTION ==========
+    function updatePhaseUI() {
+        document.querySelectorAll('.election-phase').forEach((el, i) => {
+            const numEl = el.querySelector('span:first-child');
+            const textEl = el.querySelector('span:last-child');
+            if (i <= electionPhase) {
+                numEl.className = 'w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center text-xs font-bold text-brand-500';
+                textEl.className = 'text-sm font-medium text-dark-50';
+            } else {
+                numEl.className = 'w-6 h-6 rounded-full bg-dark-400 flex items-center justify-center text-xs font-bold text-dark-200';
+                textEl.className = 'text-sm font-medium text-dark-200';
+            }
+        });
+    }
+
+    function verifyVoter() {
+        const name = document.getElementById('voterName').value.trim();
+        const id = document.getElementById('voterID').value.trim();
+        const constituency = document.getElementById('voterConstituency').value;
+
+        if (!name || !id || !constituency) {
+            showToast('Please fill all fields to verify your identity', 'error');
+            return;
+        }
+
+        document.getElementById('voterNameDisplay').textContent = name;
+        document.getElementById('simPhase0').classList.add('hidden');
+        document.getElementById('simPhase1').classList.remove('hidden');
+        electionPhase = 1;
+        updatePhaseUI();
+        renderCandidates();
+        showToast('Identity verified successfully! Cast your vote now.', 'success');
+    }
+
+    function renderCandidates() {
+        const grid = document.getElementById('candidateGrid');
+        grid.innerHTML = candidates.map(c => `
+            <div class="candidate-card bg-dark-600 border-2 border-dark-400 rounded-2xl p-6 cursor-pointer ${selectedCandidate===c.id?'selected':''}"
+                 onclick="selectCandidate(${c.id})">
+                <div class="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center mb-4" style="background:${c.symbolColor}15">
+                    <i class="${c.symbol} text-2xl" style="color:${c.symbolColor}"></i>
+                </div>
+                <h4 class="font-display font-bold text-lg text-center mb-1">${c.name}</h4>
+                <p class="text-center text-sm mb-3" style="color:${c.symbolColor}">${c.party}</p>
+                <div class="text-dark-300 text-xs text-center leading-relaxed">${c.background}</div>
+                <div class="mt-4 text-center">
+                    <span class="text-dark-300 text-xs">Age: ${c.age}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function selectCandidate(id) {
+        selectedCandidate = id;
+        renderCandidates();
+        const btn = document.getElementById('castVoteBtn');
+        btn.disabled = false;
+        btn.classList.remove('opacity-50','cursor-not-allowed');
+        document.getElementById('voteHint').textContent = `Selected: ${candidates.find(c=>c.id===id).name}`;
+    }
+
+    function castVote() {
+        if (!selectedCandidate) return;
+
+        // Add random votes to simulate other voters
+        candidates.forEach(c => {
+            c.votes = Math.floor(Math.random() * 50000) + 10000;
+        });
+        const sel = candidates.find(c => c.id === selectedCandidate);
+        sel.votes += 1;
+
+        document.getElementById('simPhase1').classList.add('hidden');
+        document.getElementById('simPhase2').classList.remove('hidden');
+        electionPhase = 2;
+        updatePhaseUI();
+
+        // Render result bars with animation
+        renderResultBars();
+        animateCounting();
+    }
+
+    function renderResultBars() {
+        const container = document.getElementById('resultBars');
+        const totalVotes = candidates.reduce((s,c) => s + c.votes, 0);
+        container.innerHTML = candidates.map(c => {
+            const pct = ((c.votes / totalVotes) * 100).toFixed(1);
+            return `
+                <div class="flex items-center gap-4">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:${c.symbolColor}20">
+                        <i class="${c.symbol}" style="color:${c.symbolColor}"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-medium text-sm">${c.name}</span>
+                            <span class="text-dark-200 text-sm"><span class="vote-count" data-target="${c.votes}">0</span> (${pct}%)</span>
+                        </div>
+                        <div class="w-full bg-dark-700 rounded-full h-3">
+                            <div class="h-3 rounded-full progress-fill" style="width:0%;background:${c.symbolColor}" data-width="${pct}%"></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function animateCounting() {
+        // Animate bars
+        setTimeout(() => {
+            document.querySelectorAll('#resultBars .progress-fill').forEach(bar => {
+                bar.style.width = bar.dataset.width;
+            });
+        }, 300);
+
+        // Animate vote counts
+        document.querySelectorAll('.vote-count').forEach(el => {
+            const target = parseInt(el.dataset.target);
+            let current = 0;
+            const step = Math.max(1, Math.floor(target / 40));
+            const timer = setInterval(() => {
+                current += step;
+                if (current >= target) { current = target; clearInterval(timer); }
+                el.textContent = current.toLocaleString();
+            }, 40);
+        });
+
+        // Show winner
+        setTimeout(() => {
+            document.getElementById('countStatus').textContent = 'Counting Complete';
+            document.getElementById('countStatus').style.color = '#FFB800';
+            const winner = candidates.reduce((a,b) => a.votes > b.votes ? a : b);
+            const totalVotes = candidates.reduce((s,c) => s + c.votes, 0);
+            const winPct = ((winner.votes / totalVotes) * 100).toFixed(1);
+            document.getElementById('winnerName').textContent = winner.name;
+            document.getElementById('winnerParty').textContent = winner.party + ' — Wins the election';
+            document.getElementById('winnerVotes').textContent = winner.votes.toLocaleString() + ' votes (' + winPct + '%)';
+            document.getElementById('winnerAnnounce').classList.remove('hidden');
+        }, 3000);
+    }
+
+    function resetElection() {
+        selectedCandidate = null;
+        electionPhase = 0;
+        candidates.forEach(c => c.votes = 0);
+        document.getElementById('simPhase2').classList.add('hidden');
+        document.getElementById('simPhase0').classList.remove('hidden');
+        document.getElementById('winnerAnnounce').classList.add('hidden');
+        document.getElementById('voterName').value = '';
+        document.getElementById('voterID').value = '';
+        document.getElementById('voterConstituency').value = '';
+        document.getElementById('castVoteBtn').disabled = true;
+        document.getElementById('castVoteBtn').classList.add('opacity-50','cursor-not-allowed');
+        document.getElementById('voteHint').textContent = 'Select a candidate first';
+        updatePhaseUI();
+    }
+
+    // ========== FRAUD DETECTION ==========
+    function renderScenario() {
+        if (currentScenario >= fraudScenarios.length) {
+            renderFraudResult();
+            return;
+        }
+        scenarioAnswered = false;
+        const s = fraudScenarios[currentScenario];
+        document.getElementById('scenarioNum').textContent = `Scenario ${currentScenario+1}/${fraudScenarios.length}`;
+        document.getElementById('scenarioDiff').textContent = s.difficulty;
+        document.getElementById('scenarioDiff').style.color = s.difficulty==='Easy'?'#00D68F':s.difficulty==='Medium'?'#FFB800':'#FF4757';
+        document.getElementById('scenarioDiff').style.background = s.difficulty==='Easy'?'rgba(0,214,143,0.1)':s.difficulty==='Medium'?'rgba(255,184,0,0.1)':'rgba(255,71,87,0.1)';
+        document.getElementById('scenarioText').textContent = s.text;
+        document.getElementById('scenarioOptions').innerHTML = s.options.map((opt, i) => `
+            <div class="quiz-option rounded-xl p-4 bg-dark-700/50" onclick="answerScenario(${i})" id="scenOpt${i}">
+                <span class="inline-flex w-6 h-6 rounded-full bg-dark-400 items-center justify-center text-xs font-bold text-dark-100 mr-2">${String.fromCharCode(65+i)}</span>
+                <span class="text-dark-100 text-sm">${opt}</span>
+            </div>
+        `).join('');
+        document.getElementById('nextScenario').classList.add('hidden');
+    }
+    renderScenario();
+
+    function answerScenario(idx) {
+        if (scenarioAnswered) return;
+        scenarioAnswered = true;
+        const s = fraudScenarios[currentScenario];
+        if (idx === s.correct) {
+            document.getElementById('scenOpt'+idx).classList.add('correct');
+            fraudScore++;
+            showToast('Correct! You spotted the violation.', 'success');
+        } else {
+            document.getElementById('scenOpt'+idx).classList.add('wrong');
+            document.getElementById('scenOpt'+s.correct).classList.add('correct');
+            showToast('Incorrect — the right answer is highlighted.', 'error');
+        }
+        document.getElementById('fraudScore').textContent = fraudScore;
+        // Disable all options
+        for (let i=0;i<s.options.length;i++) document.getElementById('scenOpt'+i).classList.add('disabled');
+        if (currentScenario < fraudScenarios.length - 1) {
+            document.getElementById('nextScenario').classList.remove('hidden');
+        } else {
+            setTimeout(renderFraudResult, 1500);
+        }
+    }
+
+    function nextScenario() {
+        currentScenario++;
+        renderScenario();
+    }
+
+    function renderFraudResult() {
+        const area = document.getElementById('fraudArea');
+        const pct = (fraudScore / fraudScenarios.length) * 100;
+        const title = pct >= 80 ? 'Excellent Vigilance' : pct >= 60 ? 'Good Awareness' : 'Keep Learning';
+        const desc = pct >= 80 ? 'You can spot electoral violations like a pro! Democracy needs watchdogs like you.' : pct >= 60 ? 'You have a decent understanding of electoral laws. Review the areas you missed.' : 'Electoral literacy needs improvement. Go through the process section again and retake this challenge.';
+        const iconColor = pct >= 80 ? '#00D68F' : pct >= 60 ? '#FFB800' : '#FF4757';
+        const iconBg = pct >= 80 ? 'rgba(0,214,143,0.15)' : pct >= 60 ? 'rgba(255,184,0,0.15)' : 'rgba(255,71,87,0.15)';
+        const icon = pct >= 80 ? 'fa-shield-alt' : pct >= 60 ? 'fa-eye' : 'fa-book-open';
+        area.innerHTML = `
+            <div class="text-center bg-dark-600 border border-dark-400 rounded-2xl p-10">
+                <div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style="background:${iconBg}">
+                    <i class="fas ${icon} text-3xl" style="color:${iconColor}"></i>
+                </div>
+                <h3 class="font-display font-900 text-3xl mb-3">${title}</h3>
+                <p class="text-dark-200 mb-4 max-w-lg mx-auto">${desc}</p>
+                <div class="font-display font-900 text-5xl mb-1" style="color:${iconColor}">${fraudScore}/${fraudScenarios.length}</div>
+                <p class="text-dark-300 mb-8">Violations detected correctly</p>
+                <button onclick="resetFraud()" class="bg-gradient-to-r from-brand-500 to-brand-600 text-dark-800 font-bold px-8 py-3 rounded-xl hover:shadow-lg hover:shadow-brand-500/30 transition-all">
+                    Try Again
+                </button>
+            </div>
+        `;
+    }
+
+    function resetFraud() {
+        currentScenario = 0;
+        fraudScore = 0;
+        document.getElementById('fraudArea').innerHTML = `
+            <div id="scenarioDisplay" class="bg-dark-600 border border-dark-400 rounded-2xl p-8 md:p-10 mb-6">
+                <div class="flex items-center gap-3 mb-6">
+                    <span id="scenarioNum" class="bg-red-400/10 text-red-400 font-bold text-sm px-3 py-1 rounded-full">Scenario 1/5</span>
+                    <span id="scenarioDiff" class="bg-gold-500/10 text-gold-500 font-bold text-sm px-3 py-1 rounded-full">Easy</span>
+                </div>
+                <p id="scenarioText" class="text-dark-50 text-lg leading-relaxed mb-8"></p>
+                <div id="scenarioOptions" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <span class="text-dark-200 text-sm">Score:</span>
+                    <span id="fraudScore" class="text-brand-400 font-bold">0</span>
+                    <span class="text-dark-300 text-sm">/5</span>
+                </div>
+                <button id="nextScenario" onclick="nextScenario()" class="hidden bg-dark-600 border border-dark-400 text-dark-100 font-medium px-6 py-2 rounded-xl hover:border-brand-500 transition-all">
+                    Next Scenario <i class="fas fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        `;
+        renderScenario();
+    }
+
+    // ========== QUIZ ==========
+    function renderQuizQuestion() {
+        if (currentQuiz >= quizQuestions.length) {
+            renderQuizResult();
+            return;
+        }
+        quizAnswered = false;
+        const q = quizQuestions[currentQuiz];
+        document.getElementById('qNum').textContent = currentQuiz + 1;
+        document.getElementById('qScore').textContent = 'Score: ' + quizScore;
+        document.getElementById('quizProgress').style.width = ((currentQuiz + 1) / quizQuestions.length * 100) + '%';
+        document.getElementById('quizQuestion').textContent = q.q;
+        document.getElementById('quizOptions').innerHTML = q.options.map((opt, i) => `
+            <div class="quiz-option rounded-xl p-4 bg-dark-700/50 flex items-center gap-3" onclick="answerQuiz(${i})" id="quizOpt${i}">
+                <span class="w-8 h-8 rounded-lg bg-dark-400 flex items-center justify-center text-sm font-bold text-dark-100 shrink-0">${String.fromCharCode(65+i)}</span>
+                <span class="text-dark-100 text-sm">${opt}</span>
+            </div>
+        `).join('');
+        document.getElementById('nextQuizBtn').classList.add('hidden');
+        document.getElementById('quizFeedback').textContent = '';
+    }
+    renderQuizQuestion();
+
+    function answerQuiz(idx) {
+        if (quizAnswered) return;
+        quizAnswered = true;
+        const q = quizQuestions[currentQuiz];
+        const feedback = document.getElementById('quizFeedback');
+        if (idx === q.correct) {
+            quizScore++;
+            document.getElementById('quizOpt'+idx).classList.add('correct');
+            feedback.textContent = 'Correct!';
+            feedback.style.color = '#00D68F';
+        } else {
+            document.getElementById('quizOpt'+idx).classList.add('wrong');
+            document.getElementById('quizOpt'+q.correct).classList.add('correct');
+            feedback.textContent = 'The correct answer is ' + String.fromCharCode(65+q.correct);
+            feedback.style.color = '#FF4757';
+        }
+        document.getElementById('qScore').textContent = 'Score: ' + quizScore;
+        for (let i=0;i<q.options.length;i++) document.getElementById('quizOpt'+i).classList.add('disabled');
+        document.getElementById('nextQuizBtn').classList.remove('hidden');
+    }
+
+    function nextQuizQuestion() {
+        currentQuiz++;
+        renderQuizQuestion();
+    }
+
+    function renderQuizResult() {
+        document.getElementById('quizArea').classList.add('hidden');
+        const result = document.getElementById('quizResult');
+        result.classList.remove('hidden');
+        const pct = (quizScore / quizQuestions.length) * 100;
+        const title = pct >= 80 ? 'Democracy Scholar' : pct >= 60 ? 'Informed Citizen' : pct >= 40 ? 'Learning Voter' : 'First-Time Learner';
+        const desc = pct >= 80 ? 'Outstanding! You have an excellent understanding of the electoral process.' : pct >= 60 ? 'Good job! You know the basics well. A little more study and you\'ll be an expert.' : pct >= 40 ? 'You\'re getting there! Review the process section to strengthen your knowledge.' : 'Don\'t worry — everyone starts somewhere. Go through the learning section and try again!';
+        const iconColor = pct >= 80 ? '#00D68F' : pct >= 60 ? '#FFB800' : pct >= 40 ? '#06B6D4' : '#FF4757';
+        const iconBg = pct >= 80 ? 'rgba(0,214,143,0.15)' : pct >= 60 ? 'rgba(255,184,0,0.15)' : pct >= 40 ? 'rgba(6,182,212,0.15)' : 'rgba(255,71,87,0.15)';
+        document.getElementById('quizResultIcon').style.background = iconBg;
+        document.getElementById('quizResultIcon').innerHTML = `<i class="fas ${pct>=80?'fa-award':'fa-book'} text-3xl" style="color:${iconColor}"></i>`;
+        document.getElementById('quizResultTitle').textContent = title;
+        document.getElementById('quizResultDesc').textContent = desc;
+        document.getElementById('quizFinalScore').textContent = quizScore;
+        document.getElementById('quizFinalScore').style.color = iconColor;
+    }
+
+    function restartQuiz() {
+        quizScore = 0;
+        currentQuiz = 0;
+        document.getElementById('quizResult').classList.add('hidden');
+        document.getElementById('quizArea').classList.remove('hidden');
+        renderQuizQuestion();
+    }
+
+    // ========== CHARTS ==========
+    function initCharts() {
+        // Voter Turnout Trend
+        const turnoutCtx = document.getElementById('turnoutChart').getContext('2d');
+        new Chart(turnoutCtx, {
+            type: 'line',
+            data: {
+                labels: ['1952','1957','1962','1967','1971','1977','1980','1984','1989','1991','1996','1998','1999','2004','2009','2014','2019','2024'],
+                datasets: [{
+                    label: 'Voter Turnout %',
+                    data: [44.9,47.7,55.4,61.0,55.3,60.5,56.9,64.0,62.0,56.7,57.9,61.9,59.9,58.1,58.2,66.4,67.4,66.1],
+                    borderColor: '#00D68F',
+                    backgroundColor: 'rgba(0,214,143,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#00D68F',
+                    pointBorderColor: '#111827',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display:false },
+                    tooltip: {
+                        backgroundColor:'#111827', titleColor:'#E8ECF1', bodyColor:'#E8ECF1',
+                        borderColor:'#1E2A42', borderWidth:1, padding:12
+                    }
+                },
+                scales: {
+                    x: { ticks:{color:'#6B7A90',font:{size:10}}, grid:{color:'rgba(30,42,66,0.5)'} },
+                    y: { ticks:{color:'#6B7A90',font:{size:10}}, grid:{color:'rgba(30,42,66,0.5)'}, min:40, max:75 }
+                }
+            }
+        });
+
+        // Party Chart
+        const partyCtx = document.getElementById('partyChart').getContext('2d');
+        new Chart(partyCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['BJP','INC','Regional Parties','Others'],
+                datasets: [{
+                    data: [37.4, 19.5, 28.3, 14.8],
+                    backgroundColor: ['#FFB800','#00D68F','#06B6D4','#A855F7'],
+                    borderColor: '#111827',
+                    borderWidth: 3,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '65%',
+                plugins: {
+                    legend: {
+                        position:'bottom',
+                        labels: { color:'#E8ECF1', padding:16, font:{size:12}, usePointStyle:true, pointStyleWidth:10 }
+                    },
+                    tooltip: {
+                        backgroundColor:'#111827', titleColor:'#E8ECF1', bodyColor:'#E8ECF1',
+                        borderColor:'#1E2A42', borderWidth:1, padding:12,
+                        callbacks: { label: ctx => ctx.label + ': ' + ctx.parsed + '%' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Initialize charts when section is visible
+    const statsObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                initCharts();
+                statsObserver.unobserve(entry.target);
+            }
+        });
+    }, { threshold:0.2 });
+    statsObserver.observe(document.getElementById('stats'));
+
+    // ========== INITIAL PHASE UI ==========
+    updatePhaseUI();
+    </script>
+</body>
+</html>
